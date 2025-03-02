@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  sqlserver:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    platform: linux/amd64  # Ajouter cette ligne pour forcer l'émulation (si mac m1 apple).
+    container_name: sqlserver_db
+    restart: unless-stopped
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=${MSSQL_SA_PASSWORD}
+      - TZ=${TZ}
+    ports:
+      - "${MSSQL_PORT}:1433"
+    volumes:
+      - ${MSSQL_DATA_DIR}:/var/opt/mssql
+      - ${MSSQL_BACKUP_DIR}:/backups
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    networks:
+      - sqlserver-network
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P ${MSSQL_SA_PASSWORD} -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    cap_add:
+      - SYS_PTRACE
+
+  # adminer:
+  #   image: adminer:latest
+  #   container_name: sqlserver_adminer
+  #   restart: unless-stopped
+  #   ports:
+  #     - "8080:8080"
+  #   environment:
+  #     - ADMINER_DEFAULT_SERVER=sqlserver
+  #     - ADMINER_DESIGN=pappu687
+  #   networks:
+  #     - sqlserver-network
+  #   depends_on:
+  #     sqlserver:
+  #       condition: service_healthy
+
+networks:
+  sqlserver-network:
+    driver: bridge
